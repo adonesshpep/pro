@@ -11,3 +11,4 @@ Route::post('/login',[AuthController::class,'login']);
 Route::post('/logout',[AuthController::class,'logout'])->middleware('auth:sanctum');
 Route::get('/email/verify/{id}/{hash}',[AuthController::class,'verifyEmail'])->middleware(['signed'])->name('verification.verify');
 Route::post('/email/resend',[AuthController::class, 'resendEmailVerification'])->middleware(['auth:sanctum'])->name('verification.resend');
+Route::get('/products',[App\Http\Controllers\Api\ProductController::class,'index']);

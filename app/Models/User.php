@@ -49,4 +49,8 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     public function orders(){
         return $this->hasMany(Order::class);
     }
+    public function roles()
+    {
+        return $this->belongsToMany(Rule::class, 'rule_user', 'user_id', 'rule_id');
+    }
 }
