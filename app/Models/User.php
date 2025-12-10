@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVerifyEmail
 {
@@ -22,6 +23,7 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'name',
         'email',
         'password',
+        'is_employee'
     ];
 
     /**
@@ -51,6 +53,30 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     }
     public function roles()
     {
-        return $this->belongsToMany(Rule::class, 'rule_user', 'user_id', 'rule_id');
+        return $this->belongsToMany(Role::class, 'role_user', 'user_id', 'role_id');
+    }
+    public function isAdmin(){
+        Log::alert('asd',$this->roles()->get());
+        return $this->is_employee && $this->roles()->where('type','admin')->exists();
+    }
+    public function isEmployee(){
+        return $this->is_employee;
+    }
+    public function isSales(){
+        return $this->is_employee && $this->roles()->where('type', 'sales')->exists();
+    }
+    public function isAccounting(){
+        return $this->is_employee && $this->roles()->where('type', 'accounting')->exists();
+    }
+    public function isInventory(){
+        return $this->is_employee && $this->roles()->where('type', 'inventory')->exists();
+    }
+    public function isReporting(){
+        return $this->is_employee && $this->roles()->where('type', 'reporting')->exists();
+    }
+    public function assignRoles(array $roles)
+    {
+        $roleIds = Role::whereIn('name', $roles)->pluck('id')->toArray();
+        $this->roles()->sync($roleIds);
     }
 }

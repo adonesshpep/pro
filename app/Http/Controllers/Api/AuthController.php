@@ -3,13 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Log as Log;
 
 class AuthController extends Controller
 {
+    use AuthorizesRequests;
     public function register(Request $request)
     {
         $atts = $request->validate([
@@ -40,6 +45,45 @@ class AuthController extends Controller
         //     'user' => UserResource::make($user),
         // ]);
     }
+    public function create(Request $request){
+        $atts=$request->validate([
+            'name'=>'string|required',
+            'email'=>'string|email|required|unique:users,email',
+            'password'=>'string|required|confirmed',
+            'is_employee'=>'boolean|required_with:roles',
+            'roles'=>'array',
+            'roles.*'=>'string|exists:roles,name'
+        ]);
+        Log::error($request->user()->roles()->get());
+        $this->authorize('createUser',Role::class);
+        Log::info('Employee Data Before Insert:', ['employeeData' => [
+            'name' => $atts['name'],
+            'email' => $atts['email'],
+        ]]);
+        try {
+        DB::transaction(function () use ($atts, &$user) {
+                    $user = User::create([
+                        'name' => $atts['name'],
+                        'email' => $atts['email'],
+                        'password' => Hash::make($atts['password']),
+                        'is_employee' => $atts['is_employee'] ?? false,
+                        'email_verified_at' => now()
+                    ]);
+                    if ($user->is_employee && isset($atts['roles'])) {
+                        $user->assignRoles($atts['roles']);
+                    }
+                });
+        } catch (\Exception $e) {
+            Log::error('Error creating employee user: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to create employee user'], 500);
+        }
+        return response()->json([
+            'message' => 'Employee user created successfully',
+            'user' => $user
+        ], 201);
+
+
+    }
     public function login(Request $request){
         $atts=$request->validate([
             'email'=>'required|email|exists:users,email',
@@ -49,12 +93,33 @@ class AuthController extends Controller
         if (!$user || !Hash::check($atts['password'], $user->password)) {
             return response()->json(['message' => 'wrong cardinatials'], 400);
         }
+        if($user->is_employee==1 || $user->roles()->exists()){
+            return response()->json(['message' => 'Access denied. Employees must use the employee api to log in.'], 403);
+        }
         $token=$user->createToken($user->name);
         return response()->json([
             'user' => $user,
             'token' => $token->plainTextToken
         ]);
     }
+    public function employeeLogin(Request $request){
+        $atts=$request->validate([
+            'email'=>'required|email|exists:users,email',
+            'password'=>'required'
+        ]);
+        $user = User::where('email', $atts['email'])->first();
+        if (!$user || !Hash::check($atts['password'], $user->password)) {
+            return response()->json(['message' => 'wrong cardinatials'], 400);
+        }
+        if($user->is_employee!=1 || !$user->roles()->exists()){
+            return response()->json(['message' => 'Access denied. Only employees can use the employee api to log in.'], 403);
+        }
+        $token=$user->createToken($user->name);
+        return response()->json([
+            'user' => $user,
+            'token' => $token->plainTextToken
+        ]);
+    } 
     public function logout(Request $request){
         //to ask louy
         //$request->user()->tokens()->delete();

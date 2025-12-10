@@ -3,16 +3,15 @@
 namespace App\Policies;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Log;
 
-class RolePloicy
+class UserPolicy
 {
     /**
      * Create a new policy instance.
      */
     public function __construct()
     {
-
+        
     }
 
     public function createUser(User $user): bool
